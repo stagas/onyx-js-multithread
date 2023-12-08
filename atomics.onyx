@@ -1,0 +1,72 @@
+#load "core/module"
+#load "core/intrinsics/atomics"
+
+use core {*}
+use core.intrinsics.atomics {*}
+
+Shared_Data :: struct {
+    arr: [] i32;
+}
+
+// This is a shared global
+shared_mutex : sync.Mutex;
+
+// This is a thread-local global
+#thread_local partial_arr : [] i32
+
+// This is shared, and exists to test that initializing new threads
+// does not re-execute the intialization segments.
+test_var := 5678;
+
+print_from_other_thread :: (sd) => {
+    // Creating high contention for the shared resource
+    for i: 10000 {
+        sync.scoped_mutex(&shared_mutex);
+        for &v: sd.arr {
+            *v += 1;
+        }
+    }
+
+    // Using the thread-local variable
+    partial_arr = make([] i32, 5);
+    for i: 5 do partial_arr[i] = i * i;
+
+    // Not printing on threads since the test case looks for EXACT string matches
+    // printf("On a worker thread: {}\n", partial_arr);
+}
+
+main :: (args) => {
+    sync.mutex_init(&shared_mutex);
+
+    test_var = 1234;
+    println(test_var);
+
+    sd: Shared_Data;
+    sd.arr = make([] i32, 1000);
+    array.fill(sd.arr, 0);
+
+    threads : [4] thread.Thread;
+    for &t: threads {
+        thread.spawn(t, &sd, print_from_other_thread);
+        printf("[onyx] Spawned thread {}\n", t.id);
+    }
+
+    memory.alloc_slice(&partial_arr, 10);
+    for i: 10 do partial_arr[i] = i;
+
+    // Waiting for thread joins.
+    printf("[onyx] Waiting...\n");
+    for &t: threads {
+        thread.join(t);
+        printf("[onyx] Thread {} joined!\n", t.id);
+    }
+    printf("[onyx] {}\n", sd.arr);
+    printf("[onyx] On the Onyx main thread: {}\n", partial_arr);
+    println(test_var);
+
+    // Uncomment this and comment the waiting for thread joins above to test kills.
+    // for &t: threads {
+    //     thread.kill(t);
+    //     printf("[onyx] Thread {} killed!\n", t.id);
+    // }
+}
