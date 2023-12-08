@@ -68,7 +68,7 @@ export function createHost(memory) {
 
 self.onmessage = async function ({ data: { cmd, setup, payload } }) {
   switch (cmd) {
-    case 'start': {
+    case "start": {
       const { binary, memory } = setup;
       const imports = createImports(memory);
       const mod = await WebAssembly.instantiate(binary, imports);
@@ -78,7 +78,7 @@ self.onmessage = async function ({ data: { cmd, setup, payload } }) {
       console.log("[worker] Main ended");
       break;
     }
-    case 'thread': {
+    case "thread": {
       const { binary, memory } = setup;
       const imports = createImports(memory);
       const mod = await WebAssembly.instantiate(binary, imports);
